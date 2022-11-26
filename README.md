@@ -1,7 +1,7 @@
 # MicroPython part of IoT Project
 ## Config file structure
 ```
-[DEAFAULT]
+[DEFAULT]
 SSID = <YOUR_SSID>
 PASS = <YOUR_PASSWORD>
 THING_NAME = <YOUR_THING>
