@@ -3,6 +3,7 @@ import network
 from umqtt.simple import MQTTClient
 import json
 import ujson
+from machine import Pin, ADC
 
 def connect_wifi(ssid, password):
     sta_if = network.WLAN(network.STA_IF)
@@ -52,7 +53,14 @@ if __name__ == '__main__':
     ssl_config = {'key': private_key,'cert': certificate, 'server_side': False}
     mqtt = connect_iot_core(thing_name, endpoint, ssl_config)
 
+    pot = ADC(Pin(36))
+    pot.atten(ADC.ATTN_11DB)
+    pot_value = 0
+
     while True:
-        mqtt.publish("ESP32/pub", "Message")
-        print('Published topic: {}'.format(topic))
+        new_value = pot.read()
+        if new_value != pot_value:
+            mqtt.publish("ESP32/pub", str(new_value))
+            print('Published value: {}'.format(new_value))
+            pot_value = new_value
         time.sleep(1)
