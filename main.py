@@ -1,31 +1,15 @@
 import time
 import network
-from umqttsimple import MQTTClient
+from umqtt.simple import MQTTClient
 import json
-import configparser
+import ujson
 
-
-config = configparser.ConfigParser()
-config.read('iot-config.ini')
-
-if 'DEFAULT' in config:
-    SSID = config['DEFAULT']['SSID']
-    PASS = config['DEFAULT']['PASS']
-    THING_NAME = config['DEFAULT']['THING_NAME']
-    TOPIC = config['DEFAULT']['TOPIC']
-    ENDPOINT = config['DEFAULT']['ENDPOINT']
-    ROOT_CA = open(config['DEFAULT']['ROOT_CA'], 'r').read()
-    CERTIFICATE = open(config['DEFAULT']['CERTIFICATE'], 'r').read()
-    PRIVATE_KEY = open(config['DEFAULT']['PRIVATE_KEY'], 'r').read()
-
-SSL_CONFIG  = {'key': PRIVATE_KEY,'cert': CERTIFICATE, 'server_side': False}
-
-def connect_wifi():
+def connect_wifi(ssid, password):
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
     if not sta_if.isconnected():
         print('Connecting to network...')
-        sta_if.connect(SSID, PASS)
+        sta_if.connect(ssid, password)
         while not sta_if.isconnected():
             pass
     print('Connected to network...')
@@ -34,24 +18,41 @@ def connect_wifi():
 def message_callback(topic, message):
     print(json.loads(message))
 
-def connect_iot_core():
+def connect_iot_core(name, endpoint, ssl_config):
     mqtt = MQTTClient(
-        THING_NAME, 
-        ENDPOINT, 
+        name, 
+        endpoint, 
         port = 8883, 
         keepalive = 10000, 
         ssl = True, 
-        ssl_params = SSL_CONFIG)
+        ssl_params = ssl_config)
     mqtt.connect()
     mqtt.set_callback(message_callback)
-    print('Connected to: {}'.format(ENDPOINT))
-    mqtt.subscribe(TOPIC)
-    print('Subscribed to topic: {}'.format(TOPIC))
+    print('Connected to: {}'.format(endpoint))
+    
     return mqtt
 
 if __name__ == '__main__':
-    connect_wifi()
-    subscription = connect_iot_core()
+    ssid, passoword = "SSID", "PASSWORD"
+    with open("config.json", "r") as config:
+        parsed = ujson.loads(config.read())
+        ssid = parsed["SSID"]
+        password = parsed["PASS"]
+        thing_name = parsed["THING_NAME"]
+        topic = parsed["TOPIC"]
+        endpoint = parsed["ENDPOINT"]
+        root_ca = open(parsed["ROOT_CA"]).read()
+        certificate = open(parsed["CERTIFICATE"]).read()
+        private_key = open(parsed["PRIVATE_KEY"]).read()
+    
+
+    print(ssid, password)
+    connect_wifi(ssid, password)
+    
+    ssl_config = {'key': private_key,'cert': certificate, 'server_side': False}
+    mqtt = connect_iot_core(thing_name, endpoint, ssl_config)
+
     while True:
-        subscription.wait_msg()
+        mqtt.publish("ESP32/pub", "Message")
+        print('Published topic: {}'.format(topic))
         time.sleep(1)
